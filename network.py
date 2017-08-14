@@ -3,40 +3,54 @@ from numpy.matlib import repmat
 import matplotlib.pyplot as plt
 
 def sigmoid(x):
-    return np.divide(1, (1+np.exp(-x/10)))
+    return np.divide(1, (1+np.exp(sigmoid_coeff*x)))
 
-def update(r, W, I): #r is a vector (firing rates at previous timestep), W is a vector (incoming weights to all neurons), I is a vector (inputs to neurons at given time)
-    return r + dt * (-r + sigmoid(np.sum(W*np.matlib.repmat(r, num_neurons, 1), axis=0) + I)) #need to take r'th column from W to multiply with all previous values of r, for each r separately. How?
+def update(r_vec, W, I_vec): #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
+    r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
+    assert W.shape == r_rep.shape
+    x = np.sum(W*r_rep, axis=0) + I_scale*I_vec
+    r_new = (r_vec + dt * (-r_vec + sigmoid(x)))/tau_c
+    return r_new, x
 
-# def BCM():
+def update_weights(r, W, x, threshold): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
+    threshold = threshold + dt * ((r*r - threshold)/tau_th)
+    W = W + dt * ((r * x * (r - threshold))/ tau_w)
+    np.fill_diagonal(W, 0) #no autapses
+    return W, threshold
+
+#scaling parameters; need to balance ratio
+#rate code time constant, BCM threshold time constant, weight time constant, input scaling, sigmoid scaling, initial BCM threshold value
+[tau_c, tau_th, tau_w, I_scale, W_scale, sigmoid_coeff, threshold] = [1, 20, 100, 0.5, 0.2, 1, 10] #clustering? Weight matrix looks weird.
+# [tau_c, tau_th, tau_w, I_scale, W_scale, sigmoid_coeff, threshold] = [1, 20, 100, 0.5, 0.2, 1, 5]
+# [tau_c, tau_th, tau_w, I_scale, W_scale, sigmoid_coeff, threshold] = [1, 20, 100, 0.5, 0.2, 1, 2] #no clustering
 
 dt = 1
 num_neurons = 100
 runtime = 1000
 num_groups = 5
 
-W = np.divide(np.random.rand(num_neurons, num_neurons), 10) #random weight matrix. 0-1. TODO: save for reproducibility. TODO: sparse matrix?
+W = np.random.rand(num_neurons, num_neurons) * W_scale
 np.fill_diagonal(W, 0) #no autapses
 
 # generate correlated inputs
 idx = 0
+global I
 I = np.zeros((num_neurons, runtime/dt))
 for i in range(num_groups):
     idx = i*(num_neurons/num_groups)
-    # I[idx:idx+20,:] = np.random.rand(1,runtime/dt) #matrix of input vectors
-    I[idx:idx+20,:] = np.random.binomial(1, 0.1, runtime/dt) #matrix of input vectors
-    print(I[idx,1:10])
+    I[idx:idx+20,:] = np.random.rand(1,runtime/dt) #matrix of input vectors
+    # I[idx:idx+20,:] = np.random.binomial(1, 0.1, runtime/dt) #matrix of input vectors
 
 r = np.zeros((num_neurons, runtime/dt))
 r[:,0] = 0; #initial values of r
 
 for t in range((runtime/dt)-1):
-    r[:, t+1] = update(r[:, t], W, I[:,t])
+    r[:, t+1], x = update(r[:, t], W, I[:,t])
+    W, threshold = update_weights(r[:, t+1], W, x, threshold)
 
 plt.plot(np.transpose(r))
 plt.show()
 
-# # if I did this neuron by neuron:
-# for t in range(runtime/dt):
-#     for n in range(num_neurons):
-#         r[n, t+1] = update(r[n,t], W, I[n,t])
+#inspect weight matrix
+plt.imshow(W)
+plt.show()
