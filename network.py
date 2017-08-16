@@ -2,6 +2,8 @@ import numpy as np
 from numpy.matlib import repmat
 import matplotlib.pyplot as plt
 
+# def sigmoid(r_pre):
+
 def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
     r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
     assert W_mat.shape == r_rep.shape
@@ -42,8 +44,7 @@ threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
 
 W_scale = 0.02 #weak weights to start with; multiplication factor should be small
-[W_max, W_min] = [1, 0] #maximum weight value
-# W_min = 1
+[W_max, W_min] = [1, 0] #weight bounds; we don't want inhibitory neurons
 
 W = np.empty((num_neurons, num_neurons, int(runtime/dt)))
 W[:,:,0] = np.random.rand(num_neurons, num_neurons) * W_scale
@@ -67,17 +68,24 @@ for t in range((int(runtime/dt))-1):
     r[:, t+1], r_pre = update(r[:, t], W[:,:,t], I[:,t])
     W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], r_pre, threshold[:,t])
 
-plt.plot(np.transpose(r))
-plt.show()
+# plt.plot(np.transpose(r))
+# plt.show()
 
-#inspect weight matrix
-plt.subplot(3,1,1)
-plt.imshow(W[:,:,0])
-plt.colorbar()
-plt.subplot(3,1,2)
-plt.imshow(W[:,:,int(runtime/dt)/3])
-plt.colorbar()
-plt.subplot(3,1,3)
-plt.imshow(W[:,:,int(runtime/dt)-1])
-plt.colorbar()
+# #inspect weight matrix - still images
+# plt.subplot(3,1,1)
+# plt.imshow(W[:,:,0])
+# plt.colorbar()
+# plt.subplot(3,1,2)
+# plt.imshow(W[:,:,int(runtime/dt)/3])
+# plt.colorbar()
+# plt.subplot(3,1,3)
+# plt.imshow(W[:,:,int(runtime/dt)-1])
+# plt.colorbar()
+# plt.show()
+
+#inspect weight matrix - video
+im = plt.imshow(W[:,:,0])
+for i in range(1, int(runtime/dt), 100):
+    im.set_data(W[:,:,i])
+    plt.pause(0.001)
 plt.show()
