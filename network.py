@@ -8,11 +8,11 @@ def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous ti
     r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
     assert W_mat.shape == r_rep.shape
     r_pre = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
-    r_post = (r_vec + dt * (-r_vec + np.exp(r_pre)))/tau_c
+    r_post = (r_vec + dt * (-r_vec + np.exp(r_pre/1.2)))/tau_c
     return r_post, r_pre
 
 def update_weights(r_vec, W_mat, r_pre, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
-    threshold_vec = threshold_vec + dt * ((r_vec*r_vec - threshold_vec)/tau_th)
+    threshold_vec = threshold_vec + dt * ((r_vec*(r_vec - threshold_vec))/tau_th)
     # threshold_vec = np.zeros((threshold_vec.size)) #when always zeros, always potentiation
 
     r_pre = r_pre.reshape(1,-1)
@@ -34,11 +34,11 @@ def update_weights(r_vec, W_mat, r_pre, threshold_vec): #BCM. Sourcing diff eqs 
 #scaling parameters; need to balance ratio
 #rate code time constant, BCM threshold time constant, weight time constant, input scaling, initial weight scaling, sigmoid scaling, initial BCM threshold value
 # [tau_c, tau_th, tau_w, I_scale, init_threshold] = [5, 10, 100, 1, 10]
-[tau_c, tau_th, tau_w, I_scale, init_threshold] = [5, 50, 1000, 2, 1] #in ms
+[tau_c, tau_th, tau_w, I_scale, init_threshold] = [5, 50, 1000, 2, 0] #in ms
 
 dt = 0.1
 num_neurons = 100
-runtime = 1000 # in ms
+runtime = 5000 # in ms
 num_groups = 5
 threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
@@ -68,8 +68,8 @@ for t in range((int(runtime/dt))-1):
     r[:, t+1], r_pre = update(r[:, t], W[:,:,t], I[:,t])
     W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], r_pre, threshold[:,t])
 
-# plt.plot(np.transpose(r))
-# plt.show()
+plt.plot(np.transpose(r))
+plt.show()
 
 # #inspect weight matrix - still images
 # plt.subplot(3,1,1)
@@ -83,9 +83,15 @@ for t in range((int(runtime/dt))-1):
 # plt.colorbar()
 # plt.show()
 
+plt.plot(np.transpose(threshold)) #show threshold over time for all neurons
+plt.show()
+
 #inspect weight matrix - video
 im = plt.imshow(W[:,:,0])
-for i in range(1, int(runtime/dt), 100):
+cb = plt.colorbar()
+cb.set_clim(vmin=0, vmax=0.05)
+for i in range(1, int(runtime/dt), 1000):
     im.set_data(W[:,:,i])
-    plt.pause(0.001)
+    cb.draw_all()
+    plt.pause(0.0001)
 plt.show()
