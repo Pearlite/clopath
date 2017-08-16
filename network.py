@@ -5,25 +5,25 @@ import matplotlib.pyplot as plt
 def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
     r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
     assert W_mat.shape == r_rep.shape
-    x = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
-    r_new = (r_vec + dt * (-r_vec + np.exp(x)))/tau_c
-    return r_new, x
+    r_pre = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
+    r_post = (r_vec + dt * (-r_vec + np.exp(r_pre)))/tau_c
+    return r_post, r_pre
 
-def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
+def update_weights(r_vec, W_mat, r_pre, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
     threshold_vec = threshold_vec + dt * ((r_vec*r_vec - threshold_vec)/tau_th)
     # threshold_vec = np.zeros((threshold_vec.size)) #when always zeros, always potentiation
 
-    x = x.reshape(1,-1)
+    r_pre = r_pre.reshape(1,-1)
     r_vec = r_vec.reshape(-1,1)
     threshold_vec = threshold_vec.reshape(-1,1)
-    W_mat = W_mat + dt * ((r_vec * (r_vec - threshold_vec) * x)/ tau_w)
-    W_mat = np.fmin(W_mat, np.ones(W_mat.shape)*W_max)
+    W_mat = W_mat + dt * ((r_vec * (r_vec - threshold_vec) * r_pre)/ tau_w)
     threshold_vec = np.squeeze(threshold_vec)
 
     W_mat = W_mat.reshape(1, -1)
     W_mat = np.fmax(W_mat, np.zeros(W_mat.shape)*W_min)
+    W_mat = np.fmin(W_mat, np.ones(W_mat.shape)*W_max)
     assert(np.max(W_mat) <= W_max)
-    assert(np.min(W_mat) <= W_min)
+    assert(np.min(W_mat) >= W_min)
     W_mat = W_mat.reshape(num_neurons, num_neurons)
 
     np.fill_diagonal(W_mat, 0) #no autapses
@@ -42,8 +42,8 @@ threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
 
 W_scale = 0.02 #weak weights to start with; multiplication factor should be small
-W_max = 1 #maximum weight value
-W_min = 1
+[W_max, W_min] = [1, 0] #maximum weight value
+# W_min = 1
 
 W = np.empty((num_neurons, num_neurons, int(runtime/dt)))
 W[:,:,0] = np.random.rand(num_neurons, num_neurons) * W_scale
@@ -64,8 +64,8 @@ r = np.zeros((num_neurons, int(runtime/dt)))
 r[:,0] = 0; #initial values of r
 
 for t in range((int(runtime/dt))-1):
-    r[:, t+1], x = update(r[:, t], W[:,:,t], I[:,t])
-    W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], x, threshold[:,t])
+    r[:, t+1], r_pre = update(r[:, t], W[:,:,t], I[:,t])
+    W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], r_pre, threshold[:,t])
 
 plt.plot(np.transpose(r))
 plt.show()
