@@ -2,9 +2,7 @@ import numpy as np
 from numpy.matlib import repmat
 import matplotlib.pyplot as plt
 
-# def sigmoid(r_pre):
-
-def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
+def update(r_vec, W_mat, I_vec): # update the firing rate #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
     r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
     assert W_mat.shape == r_rep.shape
     x = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
@@ -12,15 +10,17 @@ def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous ti
     return r_post, x
 
 def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
+    # update theta
     threshold_vec = threshold_vec + dt * ((r_vec*(r_vec - threshold_vec))/tau_th)
-    # threshold_vec = np.zeros((threshold_vec.size)) #when always zeros, always potentiation
 
+    # update weight matrix
     x = x.reshape(1,-1)
     r_vec = r_vec.reshape(-1,1)
     threshold_vec = threshold_vec.reshape(-1,1)
     W_mat = W_mat + dt * ((r_vec * (r_vec - threshold_vec) * x)/ tau_w)
     threshold_vec = np.squeeze(threshold_vec)
 
+    # make sure weights are within bounds
     W_mat = W_mat.reshape(1, -1)
     W_mat = np.fmax(W_mat, np.zeros(W_mat.shape)*W_min)
     W_mat = np.fmin(W_mat, np.ones(W_mat.shape)*W_max)
@@ -28,7 +28,9 @@ def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from
     assert(np.min(W_mat) >= W_min)
     W_mat = W_mat.reshape(num_neurons, num_neurons)
 
-    np.fill_diagonal(W_mat, 0) #no autapses
+    # remove autapses
+    # np.fill_diagonal(W_mat, 0)
+#
     return W_mat, threshold_vec
 
 #scaling parameters; need to balance ratio
@@ -38,7 +40,7 @@ def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from
 
 dt = 0.1
 num_neurons = 100
-runtime = 1000 # in ms
+runtime = 5000 # in ms
 num_groups = 5
 threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
@@ -53,15 +55,12 @@ np.fill_diagonal(W[:,:,1], 0) #no autapses
 min_input_duration = int(20 / dt) #in ms
 
 idx = 0
-# global I
 I = np.zeros((num_neurons, int(runtime/dt)))
 which_group = np.random.randint(0,5, int((runtime/dt)/min_input_duration))
 idx = [i * num_neurons/num_groups for i in range(num_groups)]
 for i in range(len(which_group)):
     # I[idx[which_group[i]]:idx[which_group[i]]+(num_neurons/num_groups), i*min_input_duration:(i+1)*min_input_duration] = 1 * np.random.rand(num_neurons/num_groups, min_input_duration)
     I[idx[which_group[i]]:idx[which_group[i]]+(num_neurons/num_groups), i*min_input_duration:(i+1)*min_input_duration] = 1
-
-plt.imshow(I)
 
 r = np.zeros((num_neurons, int(runtime/dt)))
 r[:,0] = 0; #initial values of r
