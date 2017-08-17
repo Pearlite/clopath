@@ -7,18 +7,18 @@ import matplotlib.pyplot as plt
 def update(r_vec, W_mat, I_vec): #r_vec is a vector (firing rates at previous timestep), W is a matrix (incoming weights to all neurons), I_vec is a vector (inputs to neurons at previous timestep)
     r_rep = np.matlib.repmat(r_vec, num_neurons, 1)
     assert W_mat.shape == r_rep.shape
-    r_pre = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
-    r_post = (r_vec + dt * (-r_vec + np.exp(r_pre/1.2)))/tau_c
-    return r_post, r_pre
+    x = np.sum(W_mat*r_rep, axis=0) + I_scale*I_vec
+    r_post = (r_vec + dt * (-r_vec + np.exp(x/1.2)))/tau_c
+    return r_post, x
 
-def update_weights(r_vec, W_mat, r_pre, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
+def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from https://mathematical-neuroscience.springeropen.com/articles/10.1186/s13408-017-0044-6
     threshold_vec = threshold_vec + dt * ((r_vec*(r_vec - threshold_vec))/tau_th)
     # threshold_vec = np.zeros((threshold_vec.size)) #when always zeros, always potentiation
 
-    r_pre = r_pre.reshape(1,-1)
+    x = x.reshape(1,-1)
     r_vec = r_vec.reshape(-1,1)
     threshold_vec = threshold_vec.reshape(-1,1)
-    W_mat = W_mat + dt * ((r_vec * (r_vec - threshold_vec) * r_pre)/ tau_w)
+    W_mat = W_mat + dt * ((r_vec * (r_vec - threshold_vec) * x)/ tau_w)
     threshold_vec = np.squeeze(threshold_vec)
 
     W_mat = W_mat.reshape(1, -1)
@@ -32,13 +32,13 @@ def update_weights(r_vec, W_mat, r_pre, threshold_vec): #BCM. Sourcing diff eqs 
     return W_mat, threshold_vec
 
 #scaling parameters; need to balance ratio
-#rate code time constant, BCM threshold time constant, weight time constant, input scaling, initial weight scaling, sigmoid scaling, initial BCM threshold value
+#rate code time constant, BCM threshold time constant, weight time constant, input scaling, initial weight scaling,  initial BCM threshold value
 # [tau_c, tau_th, tau_w, I_scale, init_threshold] = [5, 10, 100, 1, 10]
 [tau_c, tau_th, tau_w, I_scale, init_threshold] = [5, 50, 1000, 2, 0] #in ms
 
 dt = 0.1
 num_neurons = 100
-runtime = 5000 # in ms
+runtime = 1000 # in ms
 num_groups = 5
 threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
@@ -61,12 +61,15 @@ for i in range(len(which_group)):
     # I[idx[which_group[i]]:idx[which_group[i]]+(num_neurons/num_groups), i*min_input_duration:(i+1)*min_input_duration] = 1 * np.random.rand(num_neurons/num_groups, min_input_duration)
     I[idx[which_group[i]]:idx[which_group[i]]+(num_neurons/num_groups), i*min_input_duration:(i+1)*min_input_duration] = 1
 
+plt.imshow(I)
+
 r = np.zeros((num_neurons, int(runtime/dt)))
 r[:,0] = 0; #initial values of r
+# r[:,0] = np.random.rand(num_neurons)
 
 for t in range((int(runtime/dt))-1):
-    r[:, t+1], r_pre = update(r[:, t], W[:,:,t], I[:,t])
-    W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], r_pre, threshold[:,t])
+    r[:, t+1], x = update(r[:, t], W[:,:,t], I[:,t])
+    W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], x, threshold[:,t])
 
 plt.plot(np.transpose(r))
 plt.show()
