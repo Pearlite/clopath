@@ -99,10 +99,9 @@ r[:,0] = 0; #initial values of r
 #     plt.pause(0.0001)
 # plt.show()
 
-
 # explore parameter space
-tau_c_range = range(1, 10, 1)
-tau_th_range = range(10, 100, 10)
+tau_c_range = range(3, 6, 1)
+tau_th_range = range(40, 60, 10)
 
 clustering_at_end = np.empty((len(tau_c_range), len(tau_th_range)))
 
@@ -135,10 +134,10 @@ for tau_c in tau_c_range:
 im = plt.imshow(clustering_at_end)
 plt.title("Clustering index at combinations of tau_c, tau_th")
 plt.colorbar()
-plt.xlabel("tau_c")
-# im.set_xticks(tau_c_range)
-plt.ylabel("tau_th")
-# im.set_yticks(tau_th_range)
+plt.xlabel("tau_th")
+plt.xticks(range(len(tau_th_range)), tau_th_range)
+plt.ylabel("tau_c")
+plt.yticks(range(len(tau_c_range)), tau_c_range)
 plt.show()
 
 # other plotting options
