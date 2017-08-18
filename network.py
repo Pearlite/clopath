@@ -34,14 +34,14 @@ def update_weights(r_vec, W_mat, x, threshold_vec): #BCM. Sourcing diff eqs from
     return W_mat, threshold_vec
 
 def calc_clustering_index(W_mat):
-    # calculate a scalar as a clustering measure. This assumes an equal number of neurons in each cluster.
+    # calculate a scalar as a clustering measure for a given weight matrix. This assumes an equal number of neurons in each cluster.
     groupsize = num_neurons/num_groups
     mask = np.zeros(W_mat.shape) #create a mask of zeros and ones to index neurons in vs. neurons out of groups
     for i in range(num_groups):
         mask[i*groupsize:i*groupsize+groupsize, i*groupsize:i*groupsize+groupsize] = 1;
-    clustermean = np.mean(mask * W_mat) #get mean of all neurons within groups
-    nonclustermean = np.mean((np.ones(mask.shape) - mask) * W_mat) #get mean of all neurons outside of groups
-    return np.divide(clustermean, nonclustermean) #return clustering index scalar
+    clustermean = np.mean(mask * W_mat) #get mean firing rate of all neurons within groups
+    allmean  = np.mean(W_mat) #get mean firing rate of all neurons total
+    return np.divide(clustermean, allmean)
 
 # scaling parameters; need to balance ratio
 # rate code time constant, BCM threshold time constant, weight time constant, input scaling, initial weight scaling,  initial BCM threshold value
@@ -55,12 +55,12 @@ num_groups = 5
 threshold = np.zeros((num_neurons, int(runtime/dt)))
 threshold[:,0] = init_threshold
 
-W_scale = 0.02 #weak weights to start with; multiplication factor should be small
-[W_max, W_min] = [1, 0] #weight bounds; we don't want inhibitory neurons
+W_scale = 0.02 #weak weights to start with so they have room to grow; multiplication factor should be small
+[W_max, W_min] = [1, 0] #weight bounds; we don't want inhibitory neurons so the lower bound should be 0
 
 W = np.empty((num_neurons, num_neurons, int(runtime/dt)))
 W[:,:,0] = np.random.rand(num_neurons, num_neurons) * W_scale
-np.fill_diagonal(W[:,:,1], 0) #no autapses
+# np.fill_diagonal(W[:,:,1], 0) #no autapses
 
 min_input_duration = int(20 / dt) #in ms
 
@@ -76,19 +76,72 @@ r = np.zeros((num_neurons, int(runtime/dt)))
 r[:,0] = 0; #initial values of r
 # r[:,0] = np.random.rand(num_neurons)
 
-clustering = np.zeros(int(runtime/dt)-1)
+# clustering = np.zeros(int(runtime/dt)-1)
+#
+# for t in range((int(runtime/dt))-1):
+#     clustering[t] = calc_clustering_index(W[:,:,t])
+#     r[:, t+1], x = update(r[:, t], W[:,:,t], I[:,t])
+#     W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], x, threshold[:,t])
+#
+# plt.plot(np.transpose(r))
+# plt.show()
+#
+# plt.plot(clustering)
+# plt.show()
+#
+# #inspect weight matrix - video
+# im = plt.imshow(W[:,:,0])
+# cb = plt.colorbar()
+# cb.set_clim(vmin=0, vmax=0.05)
+# for i in range(1, int(runtime/dt), 1000):
+#     im.set_data(W[:,:,i])
+#     cb.draw_all()
+#     plt.pause(0.0001)
+# plt.show()
 
-for t in range((int(runtime/dt))-1):
-    clustering[t] = calc_clustering_index(W[:,:,t])
-    r[:, t+1], x = update(r[:, t], W[:,:,t], I[:,t])
-    W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], x, threshold[:,t])
 
-plt.plot(np.transpose(r))
+# explore parameter space
+tau_c_range = range(1, 10, 1)
+tau_th_range = range(10, 100, 10)
+
+clustering_at_end = np.empty((len(tau_c_range), len(tau_th_range)))
+
+# initialize counters for the clustering_at_end index
+[c1, c2] = [0, 0]
+tau_w = 1000 #kept constant for now
+for tau_c in tau_c_range:
+    c2 = 0
+    for tau_th in tau_th_range:
+        #reinitialize relevant parameters - can keep input I the same
+
+        W = np.empty((num_neurons, num_neurons, int(runtime/dt)))
+        W[:,:,0] = np.random.rand(num_neurons, num_neurons) * W_scale
+
+        r = np.zeros((num_neurons, int(runtime/dt)))
+        r[:,0] = 0; #initial values of r (firing rate)
+        # r[:,0] = np.random.rand(num_neurons)
+
+        threshold = np.zeros((num_neurons, int(runtime/dt)))
+        threshold[:,0] = init_threshold
+
+        for t in range((int(runtime/dt))-1):
+            r[:, t+1], x = update(r[:, t], W[:,:,t], I[:,t])
+            W[:,:,t+1], threshold[:,t+1] = update_weights(r[:, t+1], W[:,:,t], x, threshold[:,t])
+
+        clustering_at_end[c1, c2] = calc_clustering_index(W[:,:,-1])
+        c2 += 1
+    c1 += 1
+
+im = plt.imshow(clustering_at_end)
+plt.title("Clustering index at combinations of tau_c, tau_th")
+plt.colorbar()
+plt.xlabel("tau_c")
+# im.set_xticks(tau_c_range)
+plt.ylabel("tau_th")
+# im.set_yticks(tau_th_range)
 plt.show()
 
-plt.plot(clustering)
-plt.show()
-
+# other plotting options
 # #inspect weight matrix - still images
 # plt.subplot(3,1,1)
 # plt.imshow(W[:,:,0])
@@ -103,13 +156,3 @@ plt.show()
 
 # plt.plot(np.transpose(threshold)) #show threshold over time for all neurons
 # plt.show()
-
-#inspect weight matrix - video
-im = plt.imshow(W[:,:,0])
-cb = plt.colorbar()
-cb.set_clim(vmin=0, vmax=0.05)
-for i in range(1, int(runtime/dt), 1000):
-    im.set_data(W[:,:,i])
-    cb.draw_all()
-    plt.pause(0.0001)
-plt.show()
