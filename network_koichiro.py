@@ -20,6 +20,16 @@ def activation(x,method):
         y=np.maximum(0,x)
     return y
 
+# Cluster index calculation based on weight matrix
+def clustering_index(W_mat):
+    # calculate a scalar as a clustering measure for a given weight matrix. This assumes an equal number of neurons in each cluster.
+    mask = np.zeros(W_mat.shape) #create a mask of zeros and ones to index neurons in vs. neurons out of groups
+    for i in range(C):
+        mask[i*N_c:i*N_c+N_c, i*N_c:i*N_c+N_c] = 1;
+    clustermean = np.mean(mask * W_mat) #get mean firing rate of all neurons within groups
+    allmean  = np.mean(W_mat) #get mean firing rate of all neurons total
+    return np.divide(clustermean, allmean)
+
 ## Parameters
 # 1. Network structure
 N=100       # number of neurons
@@ -81,16 +91,27 @@ for t in range(len(time)-1):
     # theta update
     theta[:,t+1]=theta[:,t]+((r[:,t]**2)/th_c-theta[:,t])*dt/tau_t
 
+print('Clustering strength is {:.3f}.'.format(clustering_index(W[:,:,-2])))
 
-l=-2
-plt.imshow(W[:,:,l])
-plt.colorbar()
+# l=-2
+# plt.imshow(W[:,:,l])
+# plt.colorbar()
+# plt.show()
+
+# print(W[-2,:,:].max())
+
+# plt.plot()
+# plt.plot(W[0,15,::100])
+# plt.plot(W[0,25,::100])
+# plt.plot(theta[0,::100])
+# plt.plot(r[0,::100])
+
+#inspect weight matrix - video over time
+im = plt.imshow(W[:,:,0])
+cb = plt.colorbar()
+cb.set_clim(vmin=0, vmax=W[-2,:,:].max())
+for i in range(1, len(time)-1, 1000):
+    im.set_data(W[:,:,i])
+    cb.draw_all()
+    plt.pause(0.0001)
 plt.show()
-
-print(W[-2,:,:].max())
-
-plt.plot()
-plt.plot(W[0,15,::100])
-plt.plot(W[0,25,::100])
-plt.plot(theta[0,::100])
-plt.plot(r[0,::100])
