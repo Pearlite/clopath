@@ -67,6 +67,7 @@ I=np.ones((N, int(T/dt)))*(-10)
 for k in range(len(ip_group)):
     I[N_c*ip_group[k]:N_c*(ip_group[k]+1),k*int(ip_time/dt):(k+1)*int(ip_time/dt)]=1*ip_c
 
+
 # Learning
 for t in range(len(time)-1):
     # Set diagonal entries as 0
