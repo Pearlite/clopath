@@ -31,10 +31,11 @@ def clustering_index(W_mat, C, N_c):
     allmean  = np.mean(W_mat) #get mean firing rate of all neurons total
     return np.divide(clustermean, allmean)
 
-def weight_matrix_video(W, time):
+def weight_matrix_video(W, time, wmtitle):
     #inspect weight matrix - video over time
     im = plt.imshow(W[:,:,0])
     cb = plt.colorbar()
+    plt.title(wmtitle)
     cb.set_clim(vmin=0, vmax=W[-2,:,:].max())
     for i in range(1, len(time)-1, 1000):
         im.set_data(W[:,:,i])
@@ -58,7 +59,7 @@ class Parameters:
         [w_c,s_c,ip_c,th_c]=[0.02,1,10,1]
 
         ## Setup arrays
-        T_sec  = 1             # total time to simulate (sec)
+        T_sec  = 5             # total time to simulate (sec)
         T      = T_sec*10**3   # total time to simulate (msec)
         dt     = 0.125         # simulation time step (msec)
         time   = np.arange(0, T+dt, dt)    # time array
@@ -117,26 +118,59 @@ def run_simulation(p):
 # print('Clustering strength is {:.3f}.'.format(clustering))
 # weight_matrix_video(p.W, p.time)
 
-# ### RUN SIMULATIONS ###
-# to simulate often with different parameters (in this example, with noisy inputs):
-noise_amplitude_range = range(0,10,1)
-clustering = np.empty(len(noise_amplitude_range)) #initialize array to hold clustering outputs
-ci = 0 #initialize counter for clustering index matrix
-for noise_amplitude in noise_amplitude_range:
-    p = Parameters()     # initialize
-    p.I = p.I + noise_amplitude*np.random.standard_normal(p.I.shape)*p.ip_c #add both positive and negative noise
-    [p, clustering[ci]] = run_simulation(p)     #run simulation
-    ci = ci+1 #update counter
-# plot outcomes
-plt.plot(clustering)
-plt.xlabel('Noise amplitude')
-plt.xticks(range(len(noise_amplitude_range)), noise_amplitude_range)
-plt.ylabel('Clustering index')
+### RUN SIMULATIONS ###
+# # to simulate once: (changing I to incorporate Ornstein-Uhlenbeck process-generated noise)
+p = Parameters()
+tau_OU = 20 #Ornstein-Uhlenbeck time constant
+c_OU = 10 # noise strength
+mu = -10 # long-term mean
+p.I=np.zeros((p.N, int(p.T/p.dt)))
+for t in range(int(p.T/p.dt)-1): #should not do this for t+1, but for t+1:t+ip_time
+    r1 = np.kron(np.random.randn(p.C),np.ones(p.N_c))
+    p.I[:,t+1] = p.I[:,t] - mu
+    p.I[:,t+1] = p.I[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+    p.I[:,t+1] = p.I[:,t+1] + mu
+plt.imshow(p.I[:,0:199])
+plt.colorbar()
+plt.title('OU process-generated input (μ = {})'.format(mu))
+plt.xlabel('time')
+plt.ylabel('neurons')
 plt.show()
+[p, clustering] = run_simulation(p)
+# print('Clustering strength is {:.3f}.'.format(clustering))
+plt.plot(p.r.mean(0))
+# plt.title('Mean firing rate')
+plt.xlabel('time')
+plt.ylabel('mean firing rate')
+plt.show()
+
+wmtitle = 'Weights after OU input with μ = {} (CI = {:.3f})'.format(mu, clustering)
+print(wmtitle)
+weight_matrix_video(p.W, p.time, wmtitle)
 
 
 # # ### RUN SIMULATIONS ###
-# # to simulate with two different sets of parameters (in this example, tau_th and tau_w):
+# # to simulate often with different parameters (in this example, with noisy inputs):
+# noise_amplitude_range = range(0,10,1)
+# clustering = np.empty(len(noise_amplitude_range)) #initialize array to hold clustering outputs
+# ci = 0 #initialize counter for clustering index matrix
+# for noise_amplitude in noise_amplitude_range:
+#     p = Parameters()     # initialize
+#     p.I = p.I + noise_amplitude*np.random.standard_normal(p.I.shape)*p.ip_c #add both positive and negative noise
+#     [p, clustering[ci]] = run_simulation(p)     #run simulation
+#     ci = ci+1 #update counter
+# # plot outcomes
+# plt.plot(clustering)
+# plt.xlabel('Noise amplitude')
+# plt.xticks(range(len(noise_amplitude_range)), noise_amplitude_range)
+# plt.ylabel('Clustering index')
+# plt.show()
+
+
+
+
+# # ### RUN SIMULATIONS ###
+# # to simulate with two different sets of parameters (in this example, tau_th and tau_r):
 # tau_t_range = range(10,100,10)
 # tau_r_range = range(1,10,1)
 # clustering = np.empty((len(tau_t_range), len(tau_r_range)))# initialize matrix to hold clustering outputs
