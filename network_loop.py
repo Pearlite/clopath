@@ -111,6 +111,16 @@ def run_simulation(p):
     clustering = clustering_index(p.W[:,:,-2], p.C, p.N_c)
     return p, clustering
 
+# # plot sigmoid for illustrative purposes
+# y = np.empty(len(range(-10,10)))
+# counter = 0
+# for x in range(-10, 10):
+#     y[counter] = activation(x, 'sigmoid')
+#     counter = counter+1
+# plt.plot(y)
+# plt.xticks(range(len(y)), range(-10, 10))
+# plt.show()
+
 ### RUN SIMULATIONS ###
 # # to simulate once:
 # p = Parameters()
@@ -119,34 +129,56 @@ def run_simulation(p):
 # weight_matrix_video(p.W, p.time)
 
 ### RUN SIMULATIONS ###
-# # to simulate once: (changing I to incorporate Ornstein-Uhlenbeck process-generated noise)
-p = Parameters()
-tau_OU = 20 #Ornstein-Uhlenbeck time constant
-c_OU = 10 # noise strength
-mu = -10 # long-term mean
-p.I=np.zeros((p.N, int(p.T/p.dt)))
-for t in range(int(p.T/p.dt)-1): #should not do this for t+1, but for t+1:t+ip_time
-    r1 = np.kron(np.random.randn(p.C),np.ones(p.N_c))
-    p.I[:,t+1] = p.I[:,t] - mu
-    p.I[:,t+1] = p.I[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
-    p.I[:,t+1] = p.I[:,t+1] + mu
-plt.imshow(p.I[:,0:199])
-plt.colorbar()
-plt.title('OU process-generated input (μ = {})'.format(mu))
-plt.xlabel('time')
-plt.ylabel('neurons')
-plt.show()
-[p, clustering] = run_simulation(p)
-# print('Clustering strength is {:.3f}.'.format(clustering))
-plt.plot(p.r.mean(0))
-# plt.title('Mean firing rate')
-plt.xlabel('time')
-plt.ylabel('mean firing rate')
-plt.show()
-
-wmtitle = 'Weights after OU input with μ = {} (CI = {:.3f})'.format(mu, clustering)
-print(wmtitle)
-weight_matrix_video(p.W, p.time, wmtitle)
+# to simulate once: (changing I to incorporate Ornstein-Uhlenbeck process-generated noise)
+# p = Parameters()
+# tau_OU = 20 #Ornstein-Uhlenbeck time constant
+# c_OU = 10 # noise strength
+# mu = -10 # long-term mean
+# p.I=np.zeros((p.N, int(p.T/p.dt)))
+# np.random.seed = 1 #remove effects of stochasticity between simulations
+# for t in range(int(p.T/p.dt)-1):
+#     r1 = np.kron(np.random.randn(p.C),np.ones(p.N_c))
+#     p.I[:,t+1] = p.I[:,t] - mu
+#     p.I[:,t+1] = p.I[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#     p.I[:,t+1] = p.I[:,t+1] + mu
+#
+# # # calculate correlations between different inputs
+# # corrs = np.empty((p.C, p.C))
+# # for c1 in range(p.C):
+# #     for c2 in range(p.C):
+# #         corrs[c1, c2] = np.corrcoef(p.I[c1*p.N_c], p.I[c2*p.N_c])[1,0]
+# # plt.imshow(corrs)
+# # plt.colorbar()
+# # plt.show()
+#
+# # plot sample of input to network
+# plt.imshow(p.I[:,0:199])
+# plt.colorbar()
+# plt.title('OU process-generated input (μ = {})'.format(mu))
+# plt.xlabel('time')
+# plt.ylabel('neurons')
+# plt.show()
+#
+# # run simulation
+# [p, clustering] = run_simulation(p)
+#
+# # plot mean firing rates and mean theta
+# plt.plot(p.r.mean(0), label='Mean firing rate')
+# plt.xlabel('Time')
+# plt.plot(p.theta.mean(0), label='Mean θ')
+# plt.legend()
+# plt.show()
+#
+# wmtitle = 'Weights after OU input with μ = {} (CI = {:.3f})'.format(mu, clustering)
+# print(wmtitle)
+# weight_matrix_video(p.W, p.time, wmtitle)
+#
+# #plot W within cluster and outside cluster over time
+# plt.plot(p.W[25,30,:], label='Within cluster')
+# plt.plot(p.W[25,0,:], label='Outside cluster')
+# plt.title('Weights given OU input with μ = {} (CI = {:.3f})'.format(mu, clustering))
+# plt.legend()
+# plt.show()
 
 
 # # ### RUN SIMULATIONS ###
@@ -166,6 +198,92 @@ weight_matrix_video(p.W, p.time, wmtitle)
 # plt.ylabel('Clustering index')
 # plt.show()
 
+
+### RUN SIMULATIONS ###
+# # to simulate often with different parameters (in this example, with different values of tau_th given OU process):
+# tau_t_range = range(25,250,25)
+# clustering = np.empty(len(tau_t_range)) #initialize array to hold clustering outputs
+# p = Parameters() #extracting simulation duration to initialize mean_thetas array
+# mean_thetas = np.empty((len(tau_t_range), len(p.time)))
+# mean_rates = np.empty((len(tau_t_range), len(p.time)))
+# ci = 0 #initialize counter for clustering index matrix
+# for tau_t in tau_t_range:
+#     print(ci) #progress indicator for long simulations
+#     p = Parameters()
+#     p.tau_t = tau_t
+#     tau_OU = 20 #Ornstein-Uhlenbeck time constant
+#     c_OU = 10 # noise strength
+#     mu = 0 # long-term mean
+#     p.I=np.zeros((p.N, int(p.T/p.dt)))
+#     np.random.seed = 1 #remove effects of stochasticity between simulations
+#     for t in range(int(p.T/p.dt)-1):
+#         r1 = np.kron(np.random.randn(p.C),np.ones(p.N_c))
+#         p.I[:,t+1] = p.I[:,t] - mu
+#         p.I[:,t+1] = p.I[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#         p.I[:,t+1] = p.I[:,t+1] + mu
+# # plt.imshow(p.I[:,0:199])
+# # plt.colorbar()
+# # plt.title('OU process-generated input (μ = {})'.format(mu))
+# # plt.xlabel('time')
+# # plt.ylabel('neurons')
+# # plt.show()
+#     [p, clustering[ci]] = run_simulation(p)
+#     mean_thetas[ci,:] = p.theta.mean(0)
+#     mean_rates[ci,:] = p.r.mean(0)
+#     ci = ci+1
+#
+# plt.plot(np.transpose(mean_thetas), label=tau_t_range)
+# # plt.plot(np.transpose(mean_rates))
+# plt.xlabel('time')
+# plt.ylabel('mean plasticity threshold θ')
+# plt.show()
+# # plt.legend()
+#
+# plt.plot(clustering)
+# plt.show()
+
+
+
+
+# # ### RUN SIMULATIONS ###
+# # to simulate with two different sets of parameters (in this case, OU mu and tau_th):
+# tau_t_range = range(10,100,20)
+# mu_range = range(1,-10,-4)
+# clustering = np.empty((len(tau_t_range), len(mu_range)))# initialize matrix to hold clustering outputs
+# [ci, cj] = 0, 0 #initialize counters for clustering index matrix
+# for tau_t in tau_t_range:
+#     for mu in mu_range:
+#         print('{},{}'.format(ci, cj)) # progress indicator for long simulations
+#
+#         # initialize
+#         p = Parameters()
+#
+#         # change parameters to loop through
+#         p.tau_t = tau_t
+#
+#         tau_OU = 20 #Ornstein-Uhlenbeck time constant
+#         c_OU = 10 # noise strength
+#         p.I=np.zeros((p.N, int(p.T/p.dt)))
+#         np.random.seed = 1 #remove effects of stochasticity between simulations
+#         for t in range(int(p.T/p.dt)-1):
+#             r1 = np.kron(np.random.randn(p.C),np.ones(p.N_c))
+#             p.I[:,t+1] = p.I[:,t] - mu
+#             p.I[:,t+1] = p.I[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#             p.I[:,t+1] = p.I[:,t+1] + mu
+#
+#         [p, clustering[cj, ci]] = run_simulation(p)
+#         ci = ci+1
+#     ci = 0
+#     cj = cj+1
+#
+# plt.imshow(clustering)
+# plt.title("Clustering index for different combinations of τθ, μ")
+# plt.xlabel("μ")
+# plt.xticks(range(len(mu_range)), mu_range)
+# plt.ylabel("τθ")
+# plt.yticks(range(len(tau_t_range)), tau_t_range)
+# plt.colorbar()
+# plt.show()
 
 
 
