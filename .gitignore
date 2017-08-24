@@ -1,3 +1,4 @@
 *.png
 *.odp
 *.txt
+./tex/*

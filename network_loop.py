@@ -135,8 +135,87 @@ def run_simulation_fix_weights(p):
 # # to simulate once:
 # p = Parameters()
 # [p, clustering] = run_simulation(p)
+# plt.imshow(p.I[:,0:399])
+# plt.xlabel('Time')
+# plt.ylabel('Neurons')
+# # plt.colorbar()
+# plt.show()
+# plt.imshow(p.W[:,:,-2])
+# plt.colorbar()
+# plt.show()
 # print('Clustering strength is {:.3f}.'.format(clustering))
 # weight_matrix_video(p.W, p.time)
+
+#### SIMULATION: TESTING WHETHER WEIGHTS DO ANYTHING
+# p = Parameters()
+# # p.W = np.ones((p.N, p.N))
+# p.I = np.ones((p.I.shape)) * -53
+# p.I[20,:] = 1000 #set really strong input to ten neuron
+# # p = run_simulation_fix_weights(p)
+# p.W = np.ones((p.W.shape)) * 0.2
+# # p = run_simulation(p)
+# [p, clustering] = run_simulation(p)
+# plt.plot(np.transpose(p.r))
+# plt.show()
+# plt.plot(p.r[:,-2])
+# plt.show()
+# plt.imshow(p.W[:,:,-2])
+# plt.show()
+
+
+#### SIMULATION: MORE TESTING WHETHER WEIGHTS DO ANYTHING
+# wire clusters together with weight 1
+# p = Parameters()
+# test_W = np.zeros((p.N, p.N))
+# for i in range(p.C):
+#     test_W[i*p.N_c:i*p.N_c+p.N_c, i*p.N_c:i*p.N_c+p.N_c] = 1; #create a mask of NaNs and ones to index neurons in vs. neurons out of groups
+# plt.imshow(test_W)
+# plt.show()
+# p.W = test_W
+#
+# #set high input to one neuron. Value of negative input is chosen to not automatically drive neurons up.
+# p.I = np.ones(p.I.shape) * -11
+# p.I[11,:] = 100
+#
+# # run simulation
+# p = run_simulation_fix_weights(p)
+#
+# #plot firing rates. If weights work, should see more than 1 neuron going to 1.
+# plt.plot(np.transpose(p.r))
+# plt.show()
+#
+# #plot firing rates at end of simulation. If weights work, should see 20 highly active neurons. If weights don't work, just 1.
+# plt.plot(p.r[:,-2])
+# plt.show()
+#
+# #Getting the sense that the weights genuinely don't work...
+
+#### SIMULATION: ENDLESS TESTING WHETHER WEIGHTS DO ANYTHING
+# # wire 50 neurons to the other 50 with weight 1
+# p = Parameters()
+# test_W = np.ones((p.N, p.N))
+# test_W = np.tril((test_W)) #lower triangle is now 1s, rest 0s
+# np.fill_diagonal(test_W, 0)
+# plt.imshow(test_W)
+# plt.show()
+# p.W = test_W
+#
+# # #set high input to ~20 neuron. Value of negative input is chosen to not automatically drive neurons up.
+# p.I = np.ones(p.I.shape) * -11
+# p.I[1:20,:] = 100
+#
+# # run simulation
+# p = run_simulation_fix_weights(p)
+#
+# #plot firing rates. If weights work, should see more than 1 neuron going to 1.
+# plt.plot(np.transpose(p.r))
+# plt.show()
+#
+# #plot firing rates at end of simulation. If weights work, should see 20 highly active neurons. If weights don't work, just 1.
+# plt.plot(p.r[:,-2])
+# plt.show()
+#
+# #oh. weights do work I guess. Using triu vs. tril determines whether entire network is active or just the neurons receiving input.
 
 ### RUN SIMULATIONS ###
 # to simulate once: (changing I to incorporate Ornstein-Uhlenbeck process-generated noise)
@@ -232,10 +311,8 @@ def run_simulation_fix_weights(p):
 # wmtitle = 'Weights after OU input with Cw={}, Nw={:.2} (CI = {:.3f})'.format(w1, w2, clustering)
 # weight_matrix_video(p.W, p.time, wmtitle)
 
-
-
 ### SIMULATION: CORRELATED INPUTS, MULTIPLE WEIGHTING VALUES ###
-# 1. Generate lots of OU processes: one for every neuron plus one for every cluster
+# # 1. Generate lots of OU processes: one for every neuron plus one for every cluster
 # p = Parameters()
 #
 # tau_OU = 20 #Ornstein-Uhlenbeck time constant
@@ -280,77 +357,193 @@ def run_simulation_fix_weights(p):
 #     plt.colorbar()
 #     plt.show()
 
-
-
 ### SIMULATION: FIXED WEIGHTS, CORRELATED INPUTS, PLOT FIRING RATES PER CLUSTER
-# 1. Generate OU processes
-p = Parameters()
-
-tau_OU = 20 #Ornstein-Uhlenbeck time constant
-c_OU = 10 # noise strength
-mu = -10 # long-term mean
-
-OUs = np.empty((p.N + p.C, int(p.T/p.dt)))
-OUs[:,0] = (np.random.randn(p.N + p.C)-1)*c_OU
-for t in range(int(p.T/p.dt)-1):
-    r1 = np.random.randn(p.N + p.C)
-    OUs[:,t+1] = OUs[:,t] - mu
-    OUs[:,t+1] = OUs[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
-    OUs[:,t+1] = OUs[:,t+1] + mu
-
-# 2. Recombine OU processes for learning
-w1 = 0.1 #cluster input weighting
-w2 = 1 - w1 #individual noise weighting
-OUn = np.empty((p.N, int(p.T/p.dt))) #OU per neuron
-for n in range(p.N):
-    cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
-    OUn[n] = w1 * OUs[cl] + w2 * OUs[n+p.C]
-
-# 3. Set input
-p.I = OUn
-
-# 4. Run simulation to get weight matrix out
-[p, clustering] = run_simulation(p)
-learned_W = p.W[:,:,-2]
-
-# 2. Add a small input increase ( = signal) to one cluster
-s = 10
-OUn = np.empty((p.N, int(p.T/p.dt)))
-target = np.random.randint(0,p.C) #select one cluster to receive signal
-for n in range(p.N):
-    cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
-    OUn[n] = OUs[n+p.C]
-    if cl == target:
-        OUn[n] = OUn[n] + s
-
-plt.imshow(OUn[:,1:400]) # visual inspection, sanity check
-plt.show()
-
-# 3. Set input
-p = Parameters()
-p.I = OUn
-p.W = learned_W
-
-# 4. Run simulation with fixed weights
-p = run_simulation_fix_weights(p)
-
-#plot firing rates per cluster
-# mean_rates = np.empty((range(p.C)))
-for cl in range(p.C):
-    # print('Plotting cluster {}, neuron {} until {}.'.format(cl, cl*p.N_c, (cl+1)*p.N_c))
-    plt.plot(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0), label='Cluster {}'.format(cl+1))
-    print(np.mean(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0)))
-plt.legend()
-plt.title('Target cluster = {}'.format(target+1))
-plt.show()
-plt.xlabel('Time')
-plt.ylabel('Mean firing rates per cluster')
-
-# bar chart for mean overall firing rates
+# # 1. Generate OU processes
+# p = Parameters()
+#
+# tau_OU = 20 #Ornstein-Uhlenbeck time constant
+# c_OU = 10 # noise strength
+# mu = -10 # long-term mean
+#
+# OUs = np.empty((p.N + p.C, int(p.T/p.dt)))
+# OUs[:,0] = (np.random.randn(p.N + p.C)-1)*c_OU
+# for t in range(int(p.T/p.dt)-1):
+#     r1 = np.random.randn(p.N + p.C)
+#     OUs[:,t+1] = OUs[:,t] - mu
+#     OUs[:,t+1] = OUs[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#     OUs[:,t+1] = OUs[:,t+1] + mu
+#
+# # 2. Recombine OU processes for learning
+# w1 = 0.8 #cluster input weighting
+# w2 = 1 - w1 #individual noise weighting
+# OUn = np.empty((p.N, int(p.T/p.dt))) #OU per neuron
+# for n in range(p.N):
+#     cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
+#     OUn[n] = w1 * OUs[cl] + w2 * OUs[n+p.C]
+#
+# # 3. Set input
+# p.I = OUn
+#
+# # 4. Run simulation to get weight matrix out
+# [p, clustering] = run_simulation(p)
+# learned_W = p.W[:,:,-2]
+#
+# # 5. Add a small input increase ( = signal) to one cluster
+# s = 10
+# OUn = np.empty((p.N, int(p.T/p.dt)))
+# target = np.random.randint(0,p.C) #select one cluster to receive signal
+# for n in range(p.N):
+#     cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
+#     OUn[n] = OUs[n+p.C]
+#     if cl == target:
+#         OUn[n] = OUn[n] + s
+#
+# plt.imshow(OUn[:,1:400]) # visual inspection, sanity check
+# plt.show()
+#
+# # 6. Set input
+# p = Parameters()
+# p.I = OUn
+# p.W = learned_W
+#
+# # 7. Run simulation with fixed weights
+# p = run_simulation_fix_weights(p)
+#
+# # plt.imshow(p.r[:,1000:2000])
+# # plt.show()
+#
+# #plot firing rates per cluster
+# mean_rates = np.empty((len(range(p.C)), 1))
+# for cl in range(p.C):
+#     # print('Plotting cluster {}, neuron {} until {}.'.format(cl, cl*p.N_c, (cl+1)*p.N_c))
+#     plt.plot(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0), label='Cluster {}'.format(cl+1))
+#     mean_rates[cl] = np.mean(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0))
 # print(mean_rates)
-# fig, ax = plt.subplots()
-# rects1 = ax.bar(ind, men_means, width, color='r', yerr=men_std)
+# print(np.mean(mean_rates))
+# [ratio] = np.divide(mean_rates[target], np.mean(mean_rates))
+# plt.legend()
+# plt.title('Target cluster = {}, $μ_t / μ_a$ = {:.3}'.format(target+1, ratio))
+# plt.xlabel('Time')
+# plt.ylim((0, 1))
+# plt.ylabel('Mean firing rates per cluster')
+# plt.show()
+#
+# print('mu_target/mu_all = {}'.format(ratio))
+#
+# plt.imshow(p.W)
+# plt.show()
 
+#### SIMULATIONS: TIME OFFSETS IN THE OU PROCESSES
+# #1. Generate OU processes that are longer than needed for the simulation
+# p = Parameters()
+#
+# tau_OU = 20 #Ornstein-Uhlenbeck time constant
+# c_OU = 10 # noise strength
+# mu = -10 # long-term mean
+#
+# length = int((p.T/p.dt)*1.5)
+# OUs = np.empty((p.N + p.C, length))
+# OUs[:,0] = (np.random.randn(p.N + p.C)-1)*c_OU
+# for t in range(length-1):
+#     r1 = np.random.randn(p.N + p.C)
+#     OUs[:,t+1] = OUs[:,t] - mu
+#     OUs[:,t+1] = OUs[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#     OUs[:,t+1] = OUs[:,t+1] + mu
+#
+# #2. Generate the input vectors by recombining and time-shifting within-cluster processes
+# w1 = 0.8 #cluster input weighting
+# w2 = 1 - w1 #individual noise weighting
+# offset = 8
+# OUn = np.empty((p.N, int(p.T/p.dt))) #OU per neuron
+# for n in range(p.N):
+#     cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
+#     in_cl = np.mod(n, p.N_c) #this is the xth neuron in the cluster
+#     OUn[n] = w1 * OUs[cl, in_cl*offset:in_cl*offset+int(p.T/p.dt)] + w2 * OUs[n+p.C, 0:int(p.T/p.dt)]
+# # for n in range(p.N):
+# #     OUn[n] = OUs[0, n*offset:n*offset+int(p.T/p.dt)]
+#
+# #3. Set input
+# p.I = OUn
+# plt.imshow(p.I[:,0:399])
+# plt.show()
+#
+# #4. Run simulation
+# [p, clustering] = run_simulation(p)
+# weight_matrix_video(p.W, p.time)
+
+#### SIMULATION: PATTERN COMPLETION - Generate degraded input and see how the network responds
+# # 1. Generate OU processes
+# p = Parameters()
+#
+# tau_OU = 20 #Ornstein-Uhlenbeck time constant
+# c_OU = 10 # noise strength
+# mu = -10 # long-term mean
+#
+# OUs = np.empty((p.N + p.C, int(p.T/p.dt)))
+# OUs[:,0] = (np.random.randn(p.N + p.C)-1)*c_OU
+# for t in range(int(p.T/p.dt)-1):
+#     r1 = np.random.randn(p.N + p.C)
+#     OUs[:,t+1] = OUs[:,t] - mu
+#     OUs[:,t+1] = OUs[:,t+1] * np.exp(-p.dt/tau_OU) + np.sqrt((c_OU * tau_OU*0.5)*(1-(np.exp(-p.dt/tau_OU))**2)) * r1
+#     OUs[:,t+1] = OUs[:,t+1] + mu
+#
+# # 2. Recombine OU processes for learning
+# w1 = 0.8 #cluster input weighting
+# w2 = 1 - w1 #individual noise weighting
+# OUn = np.empty((p.N, int(p.T/p.dt))) #OU per neuron
+# for n in range(p.N):
+#     cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
+#     OUn[n] = w1 * OUs[cl] + w2 * OUs[n+p.C]
+#
+# # 3. Set input
+# p.I = OUn
+#
+# # 4. Run simulation to get weight matrix out
+# [p, clustering] = run_simulation(p)
+# learned_W = p.W[:,:,-2]
+#
+# # 5. Generate degraded patterns ( = set some inputs to a constant -10, based on degradation factor)
+# degrade = 0.25 # proportion of inputs in target cluster to drop
+#  #shuffle OUs indices to ensure I don't have the exact same inputs as in the learning phase
+# shuffle = np.random.permutation(len(OUs))
+# OUs = OUs[shuffle]
+#
+# OUn = np.ones((p.N, int(p.T/p.dt))) - 10 #OU per neuron
+# target = np.random.randint(0,p.C) #select one cluster to receive (degraded) signal; others will receive noise
+# for n in range(p.N):
+#     cl = int(np.floor(n/p.N_c)) #cluster that current neuron belongs to
+#     OUn[n] = OUs[n+p.C]
+#     if cl == target:
+#         rnum = np.random.rand()
+#         if rnum < degrade:
+#             OUn[n] = np.ones((1, int(p.T/p.dt)))*-10
+#
+# # 4. Set inputs and weight matrix
+# p = Parameters()
+# p.W = learned_W
+# p.I = OUn
+#
+# plt.imshow(p.I[:,0:399])
+# plt.show()
+#
+# # 5. Run fixed-weight simulation
+# p = run_simulation_fix_weights(p)
+#
+# #plot firing rates per cluster
+# mean_rates = np.empty((len(range(p.C)), 1))
+# for cl in range(p.C):
+#     # print('Plotting cluster {}, neuron {} until {}.'.format(cl, cl*p.N_c, (cl+1)*p.N_c))
+#     plt.plot(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0), label='Cluster {}'.format(cl+1))
+#     mean_rates[cl] = np.mean(np.mean(p.r[cl*p.N_c:(cl+1)*p.N_c], 0))
+# print(mean_rates)
+# print(np.mean(mean_rates))
+# [ratio] = np.divide(mean_rates[target], np.mean(mean_rates))
+# plt.legend()
+# plt.title('Target cluster = {}, $μ_t / μ_a$ = {:.3}'.format(target+1, ratio))
+# plt.xlabel('Time')
+# plt.ylim((0, 1))
+# plt.ylabel('Mean firing rates per cluster')
+# plt.show()
 
 # # ### RUN SIMULATIONS ###
 # # to simulate often with different parameters (in this example, with noisy inputs):
@@ -368,7 +561,6 @@ plt.ylabel('Mean firing rates per cluster')
 # plt.xticks(range(len(noise_amplitude_range)), noise_amplitude_range)
 # plt.ylabel('Clustering index')
 # plt.show()
-
 
 ### RUN SIMULATIONS ###
 # # to simulate often with different parameters (in this example, with different values of tau_th given OU process):
@@ -413,9 +605,6 @@ plt.ylabel('Mean firing rates per cluster')
 # plt.plot(clustering)
 # plt.show()
 
-
-
-
 # # ### RUN SIMULATIONS ###
 # # to simulate with two different sets of parameters (in this case, OU mu and tau_th):
 # tau_t_range = range(10,100,20)
@@ -456,8 +645,6 @@ plt.ylabel('Mean firing rates per cluster')
 # plt.colorbar()
 # plt.show()
 
-
-
 # # ### RUN SIMULATIONS ###
 # # to simulate with two different sets of parameters (in this example, tau_th and tau_r):
 # tau_t_range = range(10,100,10)
@@ -485,8 +672,6 @@ plt.ylabel('Mean firing rates per cluster')
 # plt.yticks(range(len(tau_t_range)), tau_t_range)
 # plt.colorbar()
 # plt.show()
-
-
 
 ## old plotting code down here
 # l=-2
