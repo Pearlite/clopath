@@ -20,13 +20,14 @@ def activation(x,method):
         y=np.maximum(0,x)
     return y
 
-# Cluster index calculation based on weight matrix
-def clustering_index(W_mat):
+# Cluster index calculation based on weight matrix and neurons per cluster
+def clustering_index(W_mat, C, N_c):
     # calculate a scalar as a clustering measure for a given weight matrix. This assumes an equal number of neurons in each cluster.
-    mask = np.zeros(W_mat.shape) #create a mask of zeros and ones to index neurons in vs. neurons out of groups
+    mask = np.empty(W_mat.shape)
+    mask[:] = np.NAN
     for i in range(C):
-        mask[i*N_c:i*N_c+N_c, i*N_c:i*N_c+N_c] = 1;
-    clustermean = np.mean(mask * W_mat) #get mean firing rate of all neurons within groups
+        mask[i*N_c:i*N_c+N_c, i*N_c:i*N_c+N_c] = 1; #create a mask of NaNs and ones to index neurons in vs. neurons out of groups
+    clustermean = np.nanmean(np.multiply(mask, W_mat)) #get mean firing rate of all neurons within groups
     allmean  = np.mean(W_mat) #get mean firing rate of all neurons total
     return np.divide(clustermean, allmean)
 
